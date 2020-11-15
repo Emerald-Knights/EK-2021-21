@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
@@ -18,6 +19,9 @@ public class robot {
         rightBack = hardwareMap.get(DcMotor.class, "rightBack");
         leftFront = hardwareMap.get(DcMotor.class, "leftFront");
         leftBack = hardwareMap.get(DcMotor.class, "leftBack");
+        rightBack.setDirection(DcMotorSimple.Direction.REVERSE);
+        rightFront.setDirection(DcMotorSimple.Direction.REVERSE);
+
         this.linearOpMode = linearOpMode;
         imu = hardwareMap.get(BNO055IMU.class, "imu");
         imu.getAngularOrientation();
