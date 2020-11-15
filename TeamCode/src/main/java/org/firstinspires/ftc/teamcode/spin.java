@@ -9,7 +9,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareDevice;
-@TeleOp
+@TeleOp(name="drive", group="f")
 public class spin extends LinearOpMode{
     robot boWei = new robot();
     @Override
