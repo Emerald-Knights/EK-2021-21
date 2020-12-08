@@ -14,7 +14,7 @@ public class stuff extends LinearOpMode{
     public void runOpMode(){
         boWei.init(hardwareMap, this);
         waitForStart();
-        boWei.parking();
+        boWei.parking(3000, 1);
     }
 
 
