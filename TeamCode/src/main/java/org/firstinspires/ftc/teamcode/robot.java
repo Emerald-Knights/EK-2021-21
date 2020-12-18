@@ -22,6 +22,7 @@ public class robot {
     HardwareMap hardwareMap;
     VuforiaLocalizer vuforia = null;
     TFObjectDetector tfod;
+    Servo rightLift, leftLift;
     final String TFOD_MODEL_ASSET = "UltimateGoal.tflite";
     final String LABEL_FIRST_ELEMENT = "Quad";
     final String LABEL_SECOND_ELEMENT = "Single";
@@ -32,6 +33,8 @@ public class robot {
         rightBack = hardwareMap.get(DcMotor.class, "rightBack");
         leftFront = hardwareMap.get(DcMotor.class, "leftFront");
         leftBack = hardwareMap.get(DcMotor.class, "leftBack");
+        leftLift = hardwareMap.get(Servo.class, "leftLift");
+        rightLift = hardwareMap.get(Servo.class, "rightLift");
         rightBack.setDirection(DcMotorSimple.Direction.REVERSE);
         rightFront.setDirection(DcMotorSimple.Direction.REVERSE);
         this.linearOpMode = linearOpMode;
@@ -60,27 +63,93 @@ public class robot {
         tfod = ClassFactory.getInstance().createTFObjectDetector(tfodParameters, vuforia);
         tfod.loadModelFromAsset(TFOD_MODEL_ASSET, LABEL_FIRST_ELEMENT, LABEL_SECOND_ELEMENT);
     }
+    public double checkAngle(double angle){
+        if (angle == Math.PI){
+            return Math.PI;
+        }
+        return angle % Math.PI;
+    }
     // TODO add in direction later
-    public void parking(int ticks, int direction) {
-        while (leftFront.getCurrentPosition() < ticks && linearOpMode.opModeIsActive()) {
-            if (leftFront.getCurrentPosition() <= ticks/3) {
-                leftFront.setPower((leftFront.getCurrentPosition()/ (ticks/3)) * 0.8 + 0.1);
-                leftBack.setPower((leftFront.getCurrentPosition()/ (ticks/3)) * 0.8 + 0.1);
-                rightFront.setPower((leftFront.getCurrentPosition()/ (ticks/3)) * 0.8 + 0.1);
-                rightBack.setPower((leftFront.getCurrentPosition()/ (ticks/3)) * 0.8 + 0.1);
+    public void turning(double radians){
+        double angle = imu.getAngularOrientation().firstAngle;
+        int direction = 1;
+        while(Math.abs(angle) < Math.abs(radians)- 0.1) {
+            angle = imu.getAngularOrientation().firstAngle;
+            if (checkAngle(radians - angle) < 0){
+                direction = -1;
+            }
+            else if (checkAngle(radians - angle) > 0){
+                direction = 1;
+            }
+            if (angle <= radians/3) {
+                leftFront.setPower(direction * (-( Math.abs(angle / (radians/3.0)) * 0.8 + 0.1)));
+                leftBack.setPower (direction * (-( Math.abs(angle/ (radians/3.0)) * 0.8 + 0.1)));
+                rightFront.setPower(direction * ( Math.abs(angle/ (radians/3.0)) * 0.8 + 0.1));
+                rightBack.setPower(direction * ( Math.abs(angle/ (radians/3.0)) * 0.8 + 0.1));
+                //telemetry.addData("Angle:" + (angle / (radians/3)));
 
-            } else if (leftFront.getCurrentPosition() < 2.0/3 * ticks && ticks/3 < leftFront.getCurrentPosition()) {
-                leftFront.setPower(0.8);
-                leftBack.setPower(0.8);
-                rightFront.setPower(0.8);
-                rightBack.setPower(0.8);
+                //try {
+                //Thread.sleep(10);
+                //} catch (InterruptedException e) {
+                //}
             }
-            else if (leftFront.getCurrentPosition() >= 2.0/3.0 * ticks){
-                leftFront.setPower(((ticks - (leftFront.getCurrentPosition()))/ (ticks/3)) * 0.8 + 0.1);
-                leftBack.setPower(((ticks - (leftFront.getCurrentPosition()))/ (ticks/3)) * 0.8 + 0.1);
-                rightFront.setPower(((ticks - (leftFront.getCurrentPosition()))/ (ticks/3)) * 0.8 + 0.1);
-                rightBack.setPower(((ticks - (leftFront.getCurrentPosition()))/ (ticks/3)) * 0.8 + 0.1);
+            else if (angle < 2.0/3 *radians && radians/3.0 < angle) {
+                leftFront.setPower(direction * (-0.8));
+                leftBack.setPower(direction * (-0.8));
+                rightFront.setPower(direction * (0.8));
+                rightBack.setPower(direction * (0.8));
+//                try {
+//                    Thread.sleep(10);
+//                } catch (InterruptedException e) {
+//                }
             }
+            else if (angle >= 2.0/3.0 * radians){
+                leftFront.setPower(direction * (-((Math.abs( checkAngle(radians - (angle) / (radians/3.0)))) * 0.8 + 0.1)));
+                leftBack.setPower(direction * (-((Math.abs (checkAngle(radians - (angle)/ (radians/3.0)))) * 0.8 + 0.1)));
+                rightFront.setPower(direction * ((Math.abs(checkAngle(radians - (angle)/ (radians/3.0)))) * 0.8 + 0.1));
+                rightBack.setPower(direction * ((Math.abs(checkAngle(radians - (angle)/ (radians/3.0)))) * 0.8 + 0.1));
+            }
+            //telemetry.addData("Angle:" + angle);
+            //telemetry.addData("Left:" + leftFront.getPower());
+            //telemetry.update();
+        }
+        leftFront.setPower(0);
+        leftBack.setPower(0);
+        rightFront.setPower(0);
+        rightBack.setPower(0);
+        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    }
+
+
+    public void move(int ticks, int direction) {
+        while (Math.abs(leftFront.getCurrentPosition()) < Math.abs(ticks) && linearOpMode.opModeIsActive()) {
+            if (Math.abs(leftFront.getCurrentPosition()) <= Math.abs(ticks/3.0)) {
+                leftFront.setPower(direction *((Math.abs(leftFront.getCurrentPosition())/ Math.abs(ticks/3.0)) * 0.8 + 0.1));
+                leftBack.setPower(direction * ((Math.abs(leftFront.getCurrentPosition())/ Math.abs(ticks/3.0)) * 0.8 + 0.1));
+                rightFront.setPower(direction * ((Math.abs(leftFront.getCurrentPosition())/ Math.abs(ticks/3.0)) * 0.8 + 0.1));
+                rightBack.setPower(direction * ((Math.abs(leftFront.getCurrentPosition())/ Math.abs(ticks/3.0)) * 0.8 + 0.1));
+                //telemetry.addData("rightFront:" + rightFront.getCurrentPosition());
+                //telemetry.addData("rightFront pow: "+ rightFront.getPower());
+
+            } else if (Math.abs(leftFront.getCurrentPosition() )< 2.0/3 * Math.abs(ticks) && Math.abs(ticks/3.0) < Math.abs(leftFront.getCurrentPosition())) {
+                leftFront.setPower(direction * (0.8));
+                leftBack.setPower(direction * (0.8));
+                rightFront.setPower(direction * (0.8));
+                rightBack.setPower(direction * (0.8));
+//                try {
+//                    Thread.sleep(10);
+//                } catch (InterruptedException e) {
+//                }
+            }
+            else if (Math.abs(leftFront.getCurrentPosition()) >= 2.0/3.0 * Math.abs(ticks)){
+                leftFront.setPower(direction * (((Math.abs(ticks) - Math.abs(leftFront.getCurrentPosition()))/ Math.abs(ticks/3.0)) * 0.8 + 0.1));
+                leftBack.setPower(direction * (((Math.abs(ticks) - Math.abs(leftFront.getCurrentPosition()))/ Math.abs(ticks/3.0)) * 0.8 + 0.1));
+                rightFront.setPower(direction * (((Math.abs(ticks) - Math.abs(leftFront.getCurrentPosition()))/ Math.abs((ticks/3.0))) * 0.8 + 0.1));
+                rightBack.setPower(direction * (((Math.abs(ticks) - Math.abs(leftFront.getCurrentPosition()))/ Math.abs((ticks/3.0))) * 0.8 + 0.1));
+            }
+            //telemetry.addData("leftFront:" + Math.abs(leftFront.getCurrentPosition()));
+            //telemetry.update();
 
         }
         leftFront.setPower(0);
@@ -90,35 +159,46 @@ public class robot {
         leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         leftFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
-    public double checkAngle(double angle){
-        return angle % Math.PI;
-    }
 
-    public void turning(double radians){
-        double angle = imu.getAngularOrientation().firstAngle;
-        while(angle < radians) {
-            angle = imu.getAngularOrientation().firstAngle;
-            if (angle <= radians) {
-                leftFront.setPower(-((angle / (radians/3)) * 0.8 + 0.1));
-                leftBack.setPower(-((angle/ (radians/3)) * 0.8 + 0.1));
-                rightFront.setPower((angle/ (radians/3)) * 0.8 + 0.1);
-                rightBack.setPower((angle/ (radians/3)) * 0.8 + 0.1);
-
-            } else if (angle < 2.0/3 * radians && radians/3 < leftFront.getCurrentPosition()) {
-                leftFront.setPower(-0.8);
-                leftBack.setPower(-0.8);
-                rightFront.setPower(0.8);
-                rightBack.setPower(0.8);
-
+    public void strafe(int ticks, int direction) {
+        while (Math.abs(leftFront.getCurrentPosition()) < ticks && linearOpMode.opModeIsActive()) {
+            if (Math.abs(leftFront.getCurrentPosition()) <= ticks/3.0) {
+                leftFront.setPower(-direction *((Math.abs(leftFront.getCurrentPosition())/ (ticks/3.0)) * 0.8 + 0.1));
+                leftBack.setPower(direction * ((Math.abs(leftFront.getCurrentPosition())/ (ticks/3.0)) * 0.8 + 0.1));
+                rightFront.setPower(direction * ((Math.abs(leftFront.getCurrentPosition())/ (ticks/3.0)) * 0.8 + 0.1));
+                rightBack.setPower(-direction * ((Math.abs(leftFront.getCurrentPosition())/ (ticks/3.0)) * 0.8 + 0.1));
+                //linearOpMode.telemetry.addData("rightFront:", rightFront.getCurrentPosition());
+                //telemetry.update();
+                //try {
+                //Thread.sleep(10);
+                //} catch (InterruptedException e) {
+                //}
+            } else if (Math.abs(leftFront.getCurrentPosition() )< 2.0/3 * ticks && ticks/3.0 < Math.abs(leftFront.getCurrentPosition())) {
+                leftFront.setPower(-direction * (0.8));
+                leftBack.setPower(direction * (0.8));
+                rightFront.setPower(direction * (0.8));
+                rightBack.setPower(-direction * (0.8));
+//                try {
+//                    Thread.sleep(10);
+//                } catch (InterruptedException e) {
+//                }
             }
-            else if (angle >= 2.0/3.0 * radians){
-                leftFront.setPower(-(((radians - (angle))/ (radians/3)) * 0.8 + 0.1));
-                leftBack.setPower(-(((radians - (angle))/ (radians/3)) * 0.8 + 0.1));
-                rightFront.setPower(((radians - (angle))/ (radians/3)) * 0.8 + 0.1);
-                rightBack.setPower(((radians - (angle))/ (radians/3)) * 0.8 + 0.1);
+            else if (Math.abs(leftFront.getCurrentPosition()) >= 2.0/3.0 * ticks){
+                leftFront.setPower(-direction * (((ticks - Math.abs(leftFront.getCurrentPosition()))/ (ticks/3.0)) * 0.8 + 0.1));
+                leftBack.setPower(direction * (((ticks - Math.abs(leftFront.getCurrentPosition()))/ (ticks/3.0)) * 0.8 + 0.1));
+                rightFront.setPower(direction * (((ticks - Math.abs(leftFront.getCurrentPosition()))/ (ticks/3.0)) * 0.8 + 0.1));
+                rightBack.setPower(-direction * (((ticks - Math.abs(leftFront.getCurrentPosition()))/ (ticks/3.0)) * 0.8 + 0.1));
             }
+            linearOpMode.telemetry.addData("leftFront:", Math.abs(leftFront.getCurrentPosition()));
+            linearOpMode.telemetry.update();
+
         }
+        leftFront.setPower(0);
+        leftBack.setPower(0);
+        rightFront.setPower(0);
+        rightBack.setPower(0);
+        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
-
 
 }
